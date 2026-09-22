@@ -1,0 +1,10 @@
+.env
+.venv
+__pycache__
+qdrant_storage
+# for creating docker container:
+#create a qdrant_storage folder inside the project folder and run the following command in terminal:
+# docker run -d --name qdrantRagDb -p 6333:6333 -v "${PWD}/qdrant_storage:/qdrant/storage" qdrant/qdrant                                  
+#for creating inngest development server:
+#open new terminal and run the following command in terminal:
+# npx inngest-cli@latest dev -u http://127.0.0.1:8000/api/inngest --no-discovery                        
