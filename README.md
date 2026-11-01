@@ -1,4 +1,4 @@
-# 🚀 RAG Production App
+#  RAG Production App
 
 A production-oriented **Retrieval-Augmented Generation (RAG)** application that allows users to upload PDF documents and ask natural-language questions about their content.
 
@@ -6,7 +6,7 @@ The application processes PDF documents, splits them into meaningful chunks, gen
 
 The workflow is orchestrated using **Inngest**, while **FastAPI** provides the backend API and **Streamlit** provides the interactive user interface.
 
-## 🌐 Live Demo
+##  Live Demo
 
 Try it live, no setup needed: **[rag-ingest-app.onrender.com](https://rag-ingest-app.onrender.com)**
 
@@ -20,7 +20,7 @@ The deployed code lives on the [`deploy/render-inngest-qdrant`](https://github.c
 
 ---
 
-## 📌 Overview
+##  Overview
 
 Traditional LLM applications can generate answers based only on the information contained in the model's training data. This becomes a limitation when users want to ask questions about their own documents.
 
