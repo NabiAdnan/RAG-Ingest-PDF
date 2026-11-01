@@ -1,4 +1,4 @@
-# 🚀 RAG Production App
+#  RAG Production App
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-rag--ingest--app.onrender.com-brightgreen)](https://rag-ingest-app.onrender.com)
 [![Python](https://img.shields.io/badge/Python-3.14-blue)](https://www.python.org/)
@@ -9,7 +9,7 @@
 
 Upload a PDF, ask a question about it, and get an answer grounded in that document, with the source file shown. No setup needed to try it.
 
-## 🌐 Live Demo
+##  Live Demo
 
 **[rag-ingest-app.onrender.com](https://rag-ingest-app.onrender.com)**
 
@@ -21,7 +21,7 @@ Upload a PDF, ask a question about it, and get an answer grounded in that docume
 
 Backend health check: https://rag-ingest-backend.onrender.com/health
 
-## ✨ Features
+##  Features
 
 - **PDF ingestion** — upload a PDF and it is chunked, embedded, and stored for retrieval.
 - **Grounded answers** — answers use only the retrieved context. If the answer isn't in the documents, it says so instead of guessing.
@@ -29,7 +29,7 @@ Backend health check: https://rag-ingest-backend.onrender.com/health
 - **Async orchestration** — ingestion and querying run as Inngest functions, not blocking request handlers.
 - **Large-file safe** — uploads go to the backend first over HTTP, so they aren't limited by Inngest's 256KB event size. Only a small file reference travels through Inngest.
 
-## 🧠 How it works
+##  How it works
 
 **Ingestion**
 
@@ -43,7 +43,7 @@ Backend health check: https://rag-ingest-backend.onrender.com/health
 2. The query function embeds the question, searches Qdrant for the most relevant chunks, and asks Gemini to answer using only that context.
 3. The backend hands the answer back (`/api/results/{result_id}`) and Streamlit displays it with its sources.
 
-## 🛠️ Tech stack
+##  Tech stack
 
 | Layer | Technology |
 | --- | --- |
@@ -54,7 +54,7 @@ Backend health check: https://rag-ingest-backend.onrender.com/health
 | Vector database | Qdrant Cloud |
 | PDF parsing / chunking | LlamaIndex |
 
-## ▶️ Run locally
+##  Run locally
 
 ```bash
 pip install -r requirements.txt
@@ -82,7 +82,7 @@ Deployed services:
 
 ---
 
-## 📌 Why RAG?
+##  Why RAG?
 
 Traditional LLM applications can only answer from their training data. That breaks when you want to ask questions about your own documents. This project solves that by retrieving the relevant passages first, then generating an answer strictly from them.
 
