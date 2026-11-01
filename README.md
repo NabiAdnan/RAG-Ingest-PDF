@@ -6,6 +6,18 @@ The application processes PDF documents, splits them into meaningful chunks, gen
 
 The workflow is orchestrated using **Inngest**, while **FastAPI** provides the backend API and **Streamlit** provides the interactive user interface.
 
+## 🌐 Live Demo
+
+Try it live, no setup needed: **[rag-ingest-app.onrender.com](https://rag-ingest-app.onrender.com)**
+
+1. Upload a PDF.
+2. Wait for the ingestion confirmation.
+3. Ask a question about the document and get a grounded answer with its source file listed.
+
+Note: the demo runs on Render's free tier, so the first load after idle can take about a minute to wake up. Large PDFs work too, including multi-hundred-KB reports.
+
+The deployed code lives on the [`deploy/render-inngest-qdrant`](https://github.com/NabiAdnan/RAG-Ingest-PDF/tree/deploy/render-inngest-qdrant) branch, with the full Inngest + Qdrant Cloud + Render setup in its `DEPLOY.md`.
+
 ---
 
 ## 📌 Overview
