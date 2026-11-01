@@ -1,0 +1,40 @@
+# Render Blueprint for RAG-Ingest-PDF (deploy branch).
+# Deploy from the Render dashboard: New -> Blueprint, point it at this
+# repo/branch, then fill in the secrets below (never commit real keys).
+# After the backend is live, set RAG_BACKEND_URL on BOTH services to the
+# backend's public URL and redeploy both, or query answers will not
+# come back to the Streamlit app.
+services:
+  - type: web
+    name: rag-ingest-backend
+    env: python
+    buildCommand: pip install -r requirements-deploy.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: INNGEST_PRODUCTION
+        value: "true"
+      - key: INNGEST_EVENT_KEY
+        sync: false
+      - key: INNGEST_SIGNING_KEY
+        sync: false
+      - key: RAG_BACKEND_URL
+        sync: false
+  - type: web
+    name: rag-ingest-app
+    env: python
+    buildCommand: pip install -r requirements-deploy.txt
+    startCommand: streamlit run streamlit_app.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: INNGEST_PRODUCTION
+        value: "true"
+      - key: INNGEST_EVENT_KEY
+        sync: false
+      - key: RAG_BACKEND_URL
+        sync: false

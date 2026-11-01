@@ -1,3 +1,5 @@
+import os
+
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 
@@ -6,12 +8,19 @@ class QdrantStorage:
 
     def __init__(
         self,
-        url="http://localhost:6333",
+        # Deploy: set QDRANT_URL / QDRANT_API_KEY to a Qdrant Cloud cluster.
+        # Local dev: leave them unset and it falls back to localhost:6333
+        # with no API key, exactly as before.
+        url=None,
+        api_key=None,
         collection="docs",
         dim=3072
     ):
+        url = url or os.getenv("QDRANT_URL", "http://localhost:6333")
+        api_key = api_key if api_key is not None else os.getenv("QDRANT_API_KEY")
         self.client = QdrantClient(
             url=url,
+            api_key=api_key,
             timeout=30
         )
 

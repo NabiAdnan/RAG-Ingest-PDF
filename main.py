@@ -1,12 +1,15 @@
+import base64
 import logging
+import tempfile
 from google import genai
 from google.genai import types
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 import inngest
 import inngest.fast_api
 from inngest.experimental import ai
+import requests
 import uuid
 import datetime
 from data_loader import load_and_chunk_pdf, embed_texts
@@ -20,10 +23,20 @@ gemini_client = genai.Client(
     api_key=os.getenv("GEMINI_API_KEY")
 )
 
+# Deploy: set INNGEST_PRODUCTION=true and the Inngest event/signing keys
+# in the host dashboard (the SDK reads INNGEST_EVENT_KEY /
+# INNGEST_SIGNING_KEY from the environment). Local dev keeps the old
+# behaviour: is_production=False, talking to the local Inngest dev server.
+INNGEST_PRODUCTION = os.getenv("INNGEST_PRODUCTION", "false").lower() == "true"
+# Public URL of this backend, e.g. https://rag-ingest-backend.onrender.com.
+# Used only so the query function can hand its answer back to the
+# Streamlit app (see the result endpoints below). Unset locally.
+RAG_BACKEND_URL = os.getenv("RAG_BACKEND_URL", "").rstrip("/")
+
 inngest_client = inngest.Inngest(
     app_id="rag_app",
     logger=logging.getLogger("uvicorn"),
-    is_production=False,
+    is_production=INNGEST_PRODUCTION,
     serializer=inngest.PydanticSerializer()
 )
 
@@ -35,8 +48,23 @@ inngest_client = inngest.Inngest(
 )
 async def rag_ingest_pdf(ctx: inngest.Context):
     def _load(ctx: inngest.Context) -> RAGChunkAndSrc:
-        pdf_path = ctx.event.data["pdf_path"]
-        source_id = ctx.event.data.get("source_id", pdf_path)
+        # Deploy: Streamlit and this backend run in different containers,
+        # so a Streamlit-local file path does not exist here. The deployed
+        # Streamlit app therefore sends the PDF as base64 (pdf_content_b64)
+        # and this step writes it to a temp file in *this* container.
+        # Local dev keeps working: a pdf_path event still loads that path.
+        pdf_b64 = ctx.event.data.get("pdf_content_b64")
+        source_id = ctx.event.data.get("source_id")
+        if pdf_b64:
+            pdf_bytes = base64.b64decode(pdf_b64)
+            suffix = ".pdf"
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                tmp.write(pdf_bytes)
+                pdf_path = tmp.name
+            source_id = source_id or ctx.event.data.get("pdf_path", "uploaded.pdf")
+        else:
+            pdf_path = ctx.event.data["pdf_path"]
+            source_id = source_id or pdf_path
         chunks=load_and_chunk_pdf(pdf_path)
         return  RAGChunkAndSrc(chunks=chunks, source_id=source_id)
 
@@ -128,15 +156,63 @@ async def rag_query_pdf_ai(ctx: inngest.Context):
 
     answer = response_text.strip()
 
-   
-    return {
+    result = {
         "answer": answer,
         "sources": found.sources,
         "num_contexts": len(found.contexts)
     }
 
+    # Deploy: the deployed Streamlit app cannot poll the local Inngest
+    # dev server, so the function hands its answer back to this backend
+    # (if RAG_BACKEND_URL is set) and Streamlit polls this backend.
+    # Local dev: RAG_BACKEND_URL is unset, so this is skipped and
+    # Streamlit keeps polling the dev server exactly as before.
+    result_id = ctx.event.data.get("result_id")
+    if result_id and RAG_BACKEND_URL:
+        try:
+            requests.post(
+                f"{RAG_BACKEND_URL}/api/results/{result_id}",
+                json=result,
+                timeout=10,
+            )
+        except Exception:
+            # The Inngest return value below is still the record of
+            # the run; a failed callback must not fail the answer.
+            pass
+
+    return result
+
  
-app=FastAPI() 
+app=FastAPI()
+
+
+# In-memory result store for deployed query polling. This is a demo
+# store: results live only while this backend process is running.
+# (Render's free tier may restart the service, which clears it.)
+_query_results: dict[str, dict] = {}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.get("/")
+def root():
+    return {"status": "ok", "app": "rag_app"}
+
+
+@app.post("/api/results/{result_id}")
+def store_result(result_id: str, result: dict):
+    _query_results[result_id] = result
+    return {"stored": True}
+
+
+@app.get("/api/results/{result_id}")
+def get_result(result_id: str):
+    if result_id not in _query_results:
+        raise HTTPException(status_code=404, detail="result not ready yet")
+    return _query_results[result_id]
 
 
 inngest.fast_api.serve(app, inngest_client, [rag_ingest_pdf, rag_query_pdf_ai])

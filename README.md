@@ -6,6 +6,12 @@ The application processes PDF documents, splits them into meaningful chunks, gen
 
 The workflow is orchestrated using **Inngest**, while **FastAPI** provides the backend API and **Streamlit** provides the interactive user interface.
 
+## Deploying
+
+See [DEPLOY.md](DEPLOY.md) for the full Inngest + Qdrant Cloud + Render
+setup and the shareable Streamlit link. Deployments use
+`requirements-deploy.txt`, not the original Windows `requirements.txt`.
+
 ---
 
 ## 📌 Overview

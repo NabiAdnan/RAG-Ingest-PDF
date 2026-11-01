@@ -1,0 +1,17 @@
+# Deploy requirements (Linux hosts, e.g. Render).
+# Do NOT use the original requirements.txt here: it is a pip freeze from
+# a Windows machine and includes pywin32, which fails on Linux.
+# Pins match the versions the app was built with, where known.
+fastapi==0.141.1
+uvicorn==0.53.0
+inngest==0.5.19
+google-genai==2.24.0
+llama-index-core==0.14.24
+llama-index-readers-file==0.7.0
+qdrant-client==1.19.1
+streamlit==1.64.0
+pydantic==2.13.5
+python-dotenv==1.2.3
+python-multipart==0.0.32
+requests==2.34.2
+httpx==0.28.1
