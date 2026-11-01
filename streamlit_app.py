@@ -37,17 +37,38 @@ def save_uploaded_pdf(file) -> Path:
 
 async def send_rag_ingest_event(file_name: str, file_bytes: bytes) -> None:
     client = get_inngest_client()
-    # The backend runs in a different container when deployed, so send
-    # the PDF bytes (base64) instead of a local file path. The backend
-    # writes them to a temp file before chunking. Local dev works the
-    # same way, so this path is identical in both environments.
+    if RAG_BACKEND_URL:
+        # Deployed, and the fix for large PDFs: Inngest Cloud rejects
+        # events over 262144 bytes, and base64 inflates a 677KB PDF to
+        # ~924KB, so the file bytes must NOT go through Inngest.
+        # Instead, upload the file to the backend first (plain HTTP,
+        # no Inngest size limit), then send Inngest only the tiny
+        # backend-local path reference. This is why small PDFs worked
+        # and larger ones failed with SendEventsError.
+        resp = requests.post(
+            f"{RAG_BACKEND_URL}/api/uploads",
+            files={"file": (file_name, file_bytes, "application/pdf")},
+            timeout=120,
+        )
+        resp.raise_for_status()
+        uploaded = resp.json()
+        event_data = {
+            "pdf_path": uploaded["pdf_path"],
+            "source_id": uploaded["source_id"],
+        }
+    else:
+        # Local dev only: no separate backend URL, so keep the old
+        # base64 path. It works for small files; large files hit the
+        # same Inngest Cloud limit when deployed, which is why the
+        # deployed path above does not use it.
+        event_data = {
+            "pdf_content_b64": base64.b64encode(file_bytes).decode("ascii"),
+            "source_id": file_name,
+        }
     await client.send(
         inngest.Event(
             name="rag/ingest_pdf",
-            data={
-                "pdf_content_b64": base64.b64encode(file_bytes).decode("ascii"),
-                "source_id": file_name,
-            },
+            data=event_data,
         )
     )
 

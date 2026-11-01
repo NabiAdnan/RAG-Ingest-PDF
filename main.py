@@ -1,11 +1,12 @@
 import base64
 import logging
 import tempfile
+from pathlib import Path
 from google import genai
 from google.genai import types
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 import inngest
 import inngest.fast_api
 from inngest.experimental import ai
@@ -50,9 +51,14 @@ async def rag_ingest_pdf(ctx: inngest.Context):
     def _load(ctx: inngest.Context) -> RAGChunkAndSrc:
         # Deploy: Streamlit and this backend run in different containers,
         # so a Streamlit-local file path does not exist here. The deployed
-        # Streamlit app therefore sends the PDF as base64 (pdf_content_b64)
-        # and this step writes it to a temp file in *this* container.
-        # Local dev keeps working: a pdf_path event still loads that path.
+        # Streamlit app therefore either (a) uploads the PDF to this
+        # backend first (/api/uploads) and sends the backend-local
+        # pdf_path, or (b) for small files only, sends the PDF as base64
+        # (pdf_content_b64) and this step writes it to a temp file here.
+        # (b) fails on Inngest Cloud for files over ~192KB: base64
+        # inflates the event past Inngest's 262144-byte event limit, so
+        # (a) is the normal deployed path. Local dev: a pdf_path event
+        # still loads that path.
         pdf_b64 = ctx.event.data.get("pdf_content_b64")
         source_id = ctx.event.data.get("source_id")
         if pdf_b64:
@@ -206,6 +212,34 @@ def root():
 def store_result(result_id: str, result: dict):
     _query_results[result_id] = result
     return {"stored": True}
+
+
+# Uploaded PDFs live in this backend container, so the Inngest function
+# (which also runs against this backend) can read them by path. This
+# endpoint is what makes large PDFs work: the file bytes travel
+# Streamlit -> backend over plain HTTP, and only a tiny pdf_path
+# reference travels via Inngest, well under its 262144-byte event limit.
+# Files are ephemeral on Render's free tier, like the result store above;
+# ingestion should run soon after upload, which is the normal flow.
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@app.post("/api/uploads")
+async def upload_pdf(file: UploadFile = File(...)):
+    if not (file.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="only PDF files are accepted")
+    safe_name = Path(file.filename or "uploaded.pdf").name
+    upload_id = str(uuid.uuid4())
+    dest = UPLOAD_DIR / f"{upload_id}_{safe_name}"
+    contents = await file.read()
+    dest.write_bytes(contents)
+    return {
+        "upload_id": upload_id,
+        "pdf_path": str(dest.resolve()),
+        "source_id": safe_name,
+        "size_bytes": len(contents),
+    }
 
 
 @app.get("/api/results/{result_id}")
