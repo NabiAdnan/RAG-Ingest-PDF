@@ -7,6 +7,7 @@
 services:
   - type: web
     name: rag-ingest-backend
+    plan: free
     env: python
     buildCommand: pip install -r requirements-deploy.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
@@ -28,6 +29,7 @@ services:
         sync: false
   - type: web
     name: rag-ingest-app
+    plan: free
     env: python
     buildCommand: pip install -r requirements-deploy.txt
     startCommand: streamlit run streamlit_app.py --server.port $PORT --server.address 0.0.0.0
